@@ -1,0 +1,188 @@
+---
+title: "Two-Parameter Weibull Maximum Likelihood Estimation via Newton-Raphson"
+author: "Keith R. Araneo-Yowell"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE, cache = T}
+list.of.packages<-c("tidyverse","shiny","plotly","tables","stats","stargazer")
+new.packages <-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+setwd("/Users/karaneo/Documents/R/SHOWSTOPPERS/")
+library(tidyverse)
+library(stargazer)
+library(stats)
+rm(list=ls())
+set.seed(96)
+#generate weibull distributed data#
+THETA = runif(1,0,1) #SCALE
+BETA = runif(1,0,1) # SHAPE
+n = 2000
+x = rweibull(n,BETA,THETA) # define a random varibale, X~Uniform(0,1)
+
+```
+
+# 
+The Weibull distribution with shape and scale paramters $\beta$, and $\theta$ respectively is given by the probability distribution function:
+$$f(t) =\frac{\beta}{\theta}\left(\frac{t}{\theta}\right)^{\beta-1}e^{(-\frac{t}{\theta})^\beta}, I[t>0,\beta>0, \theta>0]$$
+
+where $t$ in this case represents the length of time until some event. In survival analysis, $t$ is commonly measured as the time until death or relapse, which is what we will consider with the random data we will generate for this exercise. For this exercise, we will implement an iterative algorithm to estimate via Maximum Likelihood Estimation the parameters $\beta$, and $\theta$ that give this distribtion its scale and shape respectively.
+
+## Generating the Data
+To generate the vector, $T$, we use the *rweib()* function in the R stats package library "stats", setting both parameters in the function to a random numnber between 0 and 1.
+<p></p>
+
+*To add to the suspense, don't peek at the $\beta$ or $\theta$ you just generated, you sly dog you*
+
+$\theta$, the randomly-generated scale parameter of the weibull distribution and $\beta$, the randomly-generated shape parameter. (Vannucci, 2003).
+We plot the Weibull-distributed data below.
+
+```{r plotdist, include = T, warnings = F, echo = F, message=F}
+require(tidyverse)
+data.frame("years" = x)%>%
+  ggplot(aes(x = years))+
+  geom_density()+
+  theme(axis.ticks = element_blank(),
+        legend.background = element_blank(),
+        legend.key = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        strip.background = element_blank(),
+        plot.background = element_blank(),
+        axis.text.y = element_blank())+
+  xlab("Years After Treatment\nUntil Death or Relapse")+
+  ylab("Density")+
+  ggtitle("Generated Weibull-Distributed Data")
+```
+
+## Maximum Likelihood Estimation
+
+Now that we've generated the data, let's estimate, we need an equation for each of the parameters we are estimating.
+
+We first specify the likelihood function:
+$$L(\theta,\beta) = \prod_{i=1}^n\frac{\beta}{\theta}(\frac{t}{\theta})^{\beta-1}e^{(-\frac{t}{\theta})^\beta}$$
+or,
+$$L(\theta,\beta) = {{\frac{\beta}{\theta^\beta}}}^ne^{-\frac{1}{\theta}\sum_{i=1}^n{x_i}^\beta}\prod_{i=1}^n{\frac{x_i}{\theta}^{\beta-1}}$$
+
+For a concave likelihood function the value $\theta$ that maximizes $L(\theta,\beta)$ will be the same value that maximizes $\ln{L(\theta,\beta)}$ which turns out to be a much simpler derivative to take:
+$$l(\theta,\beta) = n\ln\frac{\beta}{\theta}+(\beta-1)\sum_{i=1}^n\ln\frac{x_i}{\theta}-\sum_{i=1}^n{\frac{x_i}{\theta}^\beta}$$
+To arrive at the maximum likelihood estimates for $\beta$ and $\theta$, we take the first derivative of $l(\theta,\beta)$ with respect to $\beta$ and and then again w.r.t. $\theta$ setting them equal to zero.
+
+$$\frac{\delta}{\delta\beta}l(\theta,\beta)=\frac{n}{\beta}+\sum_{i = 1}^n\ln\left({\frac{x_{i}}{\theta}}\right)^\beta\ln{\frac{x_{i}}{\theta}}=0$$
+
+and,
+
+$$\frac{\delta}{\delta\theta}l(\theta,\beta)=\frac{-n\beta}{\theta}+\left(\frac{\beta}{\theta}\right)\sum_{i = 1}^n\left(\frac{x_{i}}{\theta}\right)^\beta=0$$
+ Algebraic simplication yeilds:
+ 
+ $$g\left(\beta\right)=\frac{\sum_{i = 1}^nx_{i}^\beta\ln{x_{i}}}{\sum_{i=1}^nx_{i}^\beta}-\frac{\sum_{i=1}^n\ln{x_{i}}}{n}-\frac{1}{\beta}=0$$
+ and,
+ $$\theta=\left(\sum_{i=1}^n\frac{x_{i}^\beta}{n}\right)^\frac{1}{\beta}$$
+ 
+Note, $g\left(\beta\right)=0$ cannot be solved as a function of the obsertvations, $x_{i}$, so we must estimate its value using the Newton Raphson iterative method. Recall,
+$$\hat{\beta}_{n+1} =\hat{\beta}_{n}-\frac{g\left(\hat{\beta}_{n}\right)}{g'\left(\hat{\beta}_{n}\right)}$$
+where,
+$$g'\left(\beta\right)=\lim_{h\to0}\frac{g\left(\beta+h\right) - g\left(\beta\right)}{h}$$
+
+
+
+
+```{r newton, include = F, echo = F}
+x
+length(x)
+g<-function(beta){
+n<-length(x)
+f<-sum(x^beta*log(x))/sum(x^beta)-1/beta-sum(log(x))/n
+}
+d1g<- function (x, h=0.000001) {
+(g(x+h)-g(x))/h }
+
+f.newton<- function(g,d1g,y0,tol=0.0000001) {
+y <- y0
+y1 <- y + 10*tol
+while(abs(y-y1) > tol) {
+y1 <- y
+y <- y - g(y)/d1g(y)
+} 
+y
+}
+
+
+# first guess y0=1
+
+mlebeta<-f.newton(g,d1g,1)
+mlebeta
+
+mletheta<-(sum(x^mlebeta)/(length(x)))^(1/mlebeta)
+mletheta
+
+
+```
+
+Executing the operations in R, we arive at `r round(mletheta,4)` as the estimate for our randomly-generated scale parameter `r round(THETA,4)` and `r round(mlebeta,4)` as the estimate for our randomly generated shape parameter `r round(BETA,4)`.
+
+## Calculating the Expected Value
+
+The Fisher information for parameter $\theta$ is
+$$I\left(\theta\right)=E\left[\frac{\delta}{\delta\theta}\ln{L\left(X_{i};\theta\right)}\right]^2 = -E\left[\frac{\delta^2}{\delta\theta^2}\ln{L\left(X_{i};\theta\right)}\right]$$
+
+We calculate the observed information matrix for $\beta$ and $\theta$:
+$$I_{2\times2}\left(\theta,\beta\right)=\left[
+\begin{matrix} 
+-\frac{\delta^2}{\delta\theta^2}\ln{L\left(\theta,\beta\right)} &
+-\frac{\delta^2}{\delta\theta\delta\beta}\ln{L\left(\theta,\beta\right)} \\
+-\frac{\delta^2}{\delta\beta\delta\theta}\ln{L\left(\theta,\beta\right)} & 
+-\frac{\delta^2}{\delta\beta^2}\ln{L\left(\theta,\beta\right)} 
+\end{matrix}\right]$$
+
+We calculate the partial derivatives for the four elements in the information matrix:
+
+$\frac{\delta^2}{\delta\theta^2}\ln{L\left(\theta,\beta\right)} = \frac{n\beta}{\theta^2}-\frac{\beta+\beta^2}{\theta^2}\times\sum_{i = 1}^n\left(\frac{X_{i}}{\theta}\right)^\beta$
+
+
+$\frac{\delta^2}{\delta\beta^2}\ln{L\left(\theta,\beta\right)} = -\frac{n}{\beta^2}-\sum_{i=1}^n\left(\frac{X_{i}}{\theta}\right)^\beta\times\ln\left({\frac{x_{i}}{\theta}}\right)^2$
+
+
+$\frac{\delta^2}{\delta\theta\delta\beta}\ln{L\left(\theta,\beta\right)} =\frac{\delta^2}{\delta\beta\delta\theta}\ln{L\left(\theta,\beta\right)}= -\frac{n}{\theta}+\frac{1}{\theta}\sum_{i=1}^n\left(\frac{X_{i}}{\theta}\right)^\beta+\frac{\beta}{\theta}\sum_{i=1}^n\left(\frac{X_{i}}{\theta}\right)^\beta\ln{\frac{X_i}{\theta}}$
+
+When we use our estimated parameters and the data we generated in the first section, we have real values for the information matrix.
+
+```{r fim,message = F, echo = F,warning=F}
+t<-mletheta
+b<-mlebeta
+d2Ld2t<-n*b/(t^2)-(b+b^2)/(t^2)*sum((x/t)^b)
+# d2Ld2t
+d2Ld2b<-(-n/(b^2))-sum((x/t)^b*(log(x/t))^2)
+# d2Ld2b
+d2Ldbdt<-(-n/t)+(1/t)*sum((x/t)^b)+b/t*sum((x/t)^b*log(x/t))
+
+FIM<-matrix(c(-d2Ld2t,-d2Ldbdt,-d2Ldbdt,-d2Ld2b), nrow = 2,byrow = T)
+FIM
+var<-solve(FIM)
+CI.t<-round(t+c(-1.96,1.96)*sqrt(var[1,1]),4)
+CI.b<-round(b+c(-1.96,1.96)*sqrt(var[2,2]),4)
+```
+
+when we take the inverse of $I_{2\times2}\left(\theta,\beta\right)$ we get:
+
+
+```{r var, echo = F}
+var
+```
+The first and fourth elements of the information matrix are the standard errors of $\hat{\theta}$ and $\hat{\beta}$ respectively.
+
+so the 95% confidence interval for the estimate of ${\theta}$ is `r round(CI.t)`
+
+and the 95% confidence iterval for $\beta$ is `r CI.b`
+
+### References
+Bain LJ, Engelhardt,M: Introduction to Probability and Mathematical Statistics, 2nd ed. Belmont: Duxbury Press; Hardcover 1992; paperback 2000.
+
+Newton Raphson Method. Brilliant.org. Retrieved 21:29, September 27, 2019, from https://brilliant.org/wiki/newton-raphson-method/
+
+Efron, B.; Hinkley, D.V. (1978). "Assessing the accuracy of the maximum likelihood estimator: Observed versus expected Fisher Information". Biometrika. 65 (3): 457–487. doi:10.1093/biomet/65.3.457. JSTOR 2335893. MR 0521817
+
+Paolo Gibilisco, Eva Riccomagno, Maria Piera Rogantin and Henry P. Wynn, (2009) Algebraic and Geometric Methods in Statistics, Cambridge U. Press, Cambridge.
+
+
