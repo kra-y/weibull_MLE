@@ -14,7 +14,7 @@ library(tidyverse)
 library(stargazer)
 library(stats)
 rm(list=ls())
-set.seed(96)
+set.seed(90)
 #generate weibull distributed data#
 THETA = runif(1,0,1) #SCALE
 BETA = runif(1,0,1) # SHAPE
@@ -160,6 +160,7 @@ d2Ldbdt<-(-n/t)+(1/t)*sum((x/t)^b)+b/t*sum((x/t)^b*log(x/t))
 FIM<-matrix(c(-d2Ld2t,-d2Ldbdt,-d2Ldbdt,-d2Ld2b), nrow = 2,byrow = T)
 FIM
 var<-solve(FIM)
+var
 CI.t<-round(t+c(-1.96,1.96)*sqrt(var[1,1]),4)
 CI.b<-round(b+c(-1.96,1.96)*sqrt(var[2,2]),4)
 ```
@@ -172,7 +173,7 @@ var
 ```
 The first and fourth elements of the information matrix are the standard errors of $\hat{\theta}$ and $\hat{\beta}$ respectively.
 
-so the 95% confidence interval for the estimate of ${\theta}$ is `r round(CI.t)`
+so the 95% confidence interval for the estimate of ${\theta}$ is `r CI.t`
 
 and the 95% confidence iterval for $\beta$ is `r CI.b`
 
@@ -184,5 +185,4 @@ Newton Raphson Method. Brilliant.org. Retrieved 21:29, September 27, 2019, from 
 Efron, B.; Hinkley, D.V. (1978). "Assessing the accuracy of the maximum likelihood estimator: Observed versus expected Fisher Information". Biometrika. 65 (3): 457–487. doi:10.1093/biomet/65.3.457. JSTOR 2335893. MR 0521817
 
 Paolo Gibilisco, Eva Riccomagno, Maria Piera Rogantin and Henry P. Wynn, (2009) Algebraic and Geometric Methods in Statistics, Cambridge U. Press, Cambridge.
-
 
