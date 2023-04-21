@@ -9,7 +9,7 @@ output: html_document
 list.of.packages<-c("tidyverse","shiny","plotly","tables","stats","stargazer")
 new.packages <-list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
-setwd("/Users/karaneo/Documents/R/SHOWSTOPPERS/")
+setwd(getwd())
 library(tidyverse)
 library(stargazer)
 library(stats)
